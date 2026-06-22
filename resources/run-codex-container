@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+projectName="${1:-}"
+workspaceDirectory="$HOME/Documents/workspace"
+projectDirectory="$workspaceDirectory/$projectName"
+scriptDirectory="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
+dockerContextDirectory="$scriptDirectory/docker/codex-ubuntu"
+imageTag="work-codex:local"
+codexAgentsSource="$scriptDirectory/../codex/AGENTS.md"
+codexSkillSource="$scriptDirectory/../codex/workspace"
+
+if [ -z "$projectName" ]; then
+    echo "usage: run-codex-container <projectName>"
+    exit 1
+fi
+
+if [ ! -d "$projectDirectory" ]; then
+    echo "project directory not found: $projectDirectory"
+    exit 1
+fi
+
+if [ ! -f "$codexAgentsSource" ]; then
+    echo "codex AGENTS file not found: $codexAgentsSource"
+    exit 1
+fi
+
+if [ ! -d "$codexSkillSource" ]; then
+    echo "codex workspace skill not found: $codexSkillSource"
+    exit 1
+fi
+
+containerHome="/home/work"
+containerWorkspace="$containerHome/workspace"
+containerProjectDirectory="$containerWorkspace/$projectName"
+sharedStateDirectory="$HOME/.local/share/work-codex"
+sharedToolsDirectory="$sharedStateDirectory/work-tools"
+containerNamePrefix="work-codex-${projectName}"
+randomSuffix="$(printf '%04x%04x' "$RANDOM" "$RANDOM")"
+containerName="${containerNamePrefix}-${randomSuffix}"
+
+mkdir -p \
+    "$HOME/.codex" \
+    "$sharedToolsDirectory"
+
+exec docker run -it --rm \
+    --name "$containerName" \
+    --security-opt seccomp=unconfined \
+    -e HOME="$containerHome" \
+    -e WORK_UID="$(id -u)" \
+    -e WORK_GID="$(id -g)" \
+    -v "$workspaceDirectory:$containerWorkspace" \
+    -v "$HOME/.codex:$containerHome/.codex" \
+    -v "$codexAgentsSource:$containerHome/.codex/AGENTS.md" \
+    -v "$codexSkillSource:$containerHome/.codex/skills/workspace" \
+    -v "$sharedToolsDirectory:/opt/work-tools" \
+    -w "$containerProjectDirectory" \
+    "$imageTag"

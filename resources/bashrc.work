@@ -1,0 +1,138 @@
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+alias gc="git commit -am 'refactoring'"
+alias gcp="git commit -am 'refactoring'; git push"
+alias gs='git status'
+alias gd='git diff'
+alias gdh='git diff HEAD'
+alias ga='git add .'
+
+# go unit testing
+alias gou='go test ./...'
+
+# tx = tmux session exit (and cleanup related containers)
+tx() {
+    local session_name
+    local target_session_name
+    local target_session
+    local container_id
+    local container_name
+    local container_prefix
+
+    session_name="$(tmux display-message -p '#S' 2>/dev/null || true)"
+    if [ -z "$session_name" ]; then
+        echo "tx must be run inside tmux"
+        return 1
+    fi
+
+    target_session_name="${1:-}"
+
+    if [ -n "$target_session_name" ] && [ "$target_session_name" = "$session_name" ]; then
+        echo "tx cannot switch to the current session"
+        return 1
+    fi
+
+    if [ -n "$target_session_name" ]; then
+        "$HOME/Documents/workspace/work/resources/work-ensure" "$target_session_name" || return 1
+        target_session="=$target_session_name"
+        tmux switch-client -t "$target_session" || return 1
+    fi
+
+    container_prefix="work-codex-${session_name}"
+    while read -r container_id container_name; do
+        case "$container_name" in
+            "$container_prefix"|"$container_prefix"-*)
+                docker rm -f "$container_id" >/dev/null 2>&1 || true
+                ;;
+        esac
+    done < <(docker ps -a --format '{{.ID}} {{.Names}}')
+
+    tmux kill-session -t "=$session_name" 2>/dev/null || true
+}
+alias shut="shutdown now"
+alias tls="tmux ls"
+
+codex() {
+    local session_name
+
+    if [ -z "${TMUX:-}" ]; then
+        echo "codex can only be used within a tmux session"
+        return 1
+    fi
+
+    session_name="$(tmux display-message -p '#S' 2>/dev/null || true)"
+    if [ -z "$session_name" ]; then
+        echo "codex can only be used within a tmux session"
+        return 1
+    fi
+
+    "$HOME/Documents/workspace/work/resources/run-codex-container" "$session_name"
+}
+
+# Go to repo root dir
+alias gtr='cd $(git rev-parse --show-toplevel)'
+
+# Go to sub-component dir
+gts() {
+  local top rel first
+  top=$(git rev-parse --show-toplevel 2>/dev/null) || return
+
+  rel=${PWD#"$top"/}
+  if [[ $rel != src/* ]]; then
+    echo "No src path found, can't go to subcomponent directory."
+    return 1
+  fi
+
+  first=${rel#src/}
+  first=${first%%/*}
+  cd "$top/src/$first"
+}
+
+# got = Go test
+got() {
+    local test_name="$1"
+    local build_tag="$2"
+    local tagsFlag=""
+
+    if [ -z "$test_name" ]; then
+        echo "usage: got <test-name> [build-tag]"
+        return 1
+    fi
+
+    if [ -n "$build_tag" ]; then
+        tagsFlag="-tags=$build_tag"
+    fi
+
+    go test -v -count=1 "$tagsFlag" -run "^$test_name" ./...
+}
+
+# rga = ripgrep apply (find + replace)
+rga() {
+    [ "$#" -eq 2 ] || { echo "usage: rga <from> <to>"; return 1; }
+    rg --hidden -g '!.git' -l --null --fixed-strings "$1" . | xargs -0 -r sed -i "s|$1|$2|g"
+}
+
+_work_complete() {
+    local cur workspace
+    local -a projects
+
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    workspace="$HOME/Documents/workspace"
+
+    if [ "$COMP_CWORD" -ne 1 ]; then
+        return 0
+    fi
+
+    if [ ! -d "$workspace" ]; then
+        return 0
+    fi
+
+    mapfile -t projects < <(find "$workspace" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null)
+    COMPREPLY=( $(compgen -W "${projects[*]}" -- "$cur") )
+}
+
+complete -F _work_complete work
+complete -F _work_complete codex
+complete -F _work_complete tx

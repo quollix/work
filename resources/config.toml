@@ -1,0 +1,40 @@
+[editor]
+# Run configured formatters automatically when saving.
+auto-format = true
+# Highlight the active line to keep focus anchored while editing.
+cursorline = true
+
+[editor.auto-save]
+# Save immediately when leaving the editor window.
+focus-lost = true
+
+[editor.soft-wrap]
+# Wrap long lines instead of forcing horizontal scrolling.
+enable = true
+
+[editor.auto-save.after-delay]
+# Also save shortly after edits stop.
+enable = true
+timeout = 800
+
+[editor.lsp]
+# Show inline hints from language servers such as parameter names.
+display-inlay-hints = true
+
+[editor.statusline]
+# Keep the left side focused on mode and current file state.
+left = ["mode", "spinner", "file-name", "read-only-indicator", "file-modification-indicator"]
+# Show version control info in the center.
+center = ["version-control"]
+# Keep diagnostics and cursor/file metadata on the right.
+right = ["diagnostics", "selections", "position", "file-encoding", "file-line-ending", "file-type"]
+
+[editor.file-picker]
+# Include hidden files in the picker so dotfiles stay reachable.
+hidden = false
+
+[editor.indent-guides]
+# Render indentation guides to make nesting depth easier to scan.
+render = true
+character = "|"
+skip-levels = 1
