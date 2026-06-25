@@ -12,6 +12,15 @@ alias ga='git add .'
 # go unit testing
 alias gou='go test ./...'
 
+# Go line count, excluding build wiring and mock files.
+golc() {
+    find . -type f -name "*.go" \
+        ! -name "build.go" \
+        ! -name "wire.go" \
+        ! -name "*_mock.go" \
+        -exec wc -l {} +
+}
+
 # tx = tmux session exit (and cleanup related containers)
 tx() {
     local session_name
@@ -35,7 +44,7 @@ tx() {
     fi
 
     if [ -n "$target_session_name" ]; then
-        "$HOME/Documents/workspace/work/resources/work-ensure" "$target_session_name" || return 1
+        "$HOME/Documents/workspace/work/resources/work" --ensure "$target_session_name" || return 1
         target_session="=$target_session_name"
         tmux switch-client -t "$target_session" || return 1
     fi

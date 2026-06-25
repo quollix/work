@@ -2,14 +2,76 @@
 set -euo pipefail
 
 scriptDirectory="$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)"
-source "$scriptDirectory/work-common.sh"
 
-projectName="${1:-}"
+work_ensure_session() {
+    local projectName="$1"
+    local workspaceDirectory="$HOME/Documents/workspace"
+    local projectDirectory="$workspaceDirectory/$projectName"
+    local sessionTarget="=$projectName"
+    local helixWindowName="helix"
+    local shellWindowName="shell"
+    local codexWindowName="codex"
+
+    if [ ! -d "$projectDirectory" ]; then
+        echo "repo does not exist in $workspaceDirectory: $projectName"
+        return 1
+    fi
+
+    if tmux has-session -t "$sessionTarget" 2>/dev/null; then
+        return 0
+    fi
+
+    tmux new-session -d -s "$projectName" -n "$shellWindowName" -c "$projectDirectory"
+    tmux new-window -t "$sessionTarget" -n "$helixWindowName" -c "$projectDirectory"
+    tmux send-keys -t "$sessionTarget":"$helixWindowName" "hx ." C-m
+    tmux new-window -t "$sessionTarget" -n "$codexWindowName" -c "$projectDirectory" "$scriptDirectory/run-codex-container \"$projectName\""
+    tmux select-window -t "$sessionTarget":"$shellWindowName"
+}
+
+work_enter_session() {
+    local projectName="$1"
+    local sessionTarget="=$projectName"
+
+    # Inside tmux we switch client; outside tmux we attach from this terminal.
+    if [ -n "${TMUX:-}" ]; then
+        exec tmux switch-client -t "$sessionTarget"
+    else
+        exec tmux attach -t "$sessionTarget"
+    fi
+}
+
+ensureOnly=false
+projectName=""
+
+case "${1:-}" in
+    "--ensure")
+        ensureOnly=true
+        projectName="${2:-}"
+        ;;
+    "-h"|"--help")
+        echo "usage: work [--ensure] <projectName>"
+        exit 0
+        ;;
+    -*)
+        echo "usage: work [--ensure] <projectName>"
+        exit 1
+        ;;
+    "")
+        ;;
+    *)
+        projectName="$1"
+        ;;
+esac
 
 if [ -z "$projectName" ]; then
-    echo "usage: work <projectName>"
+    echo "usage: work [--ensure] <projectName>"
     exit 1
 fi
 
-work_ensure_session "$projectName" "$scriptDirectory"
+work_ensure_session "$projectName"
+
+if [ "$ensureOnly" = true ]; then
+    exit 0
+fi
+
 work_enter_session "$projectName"
