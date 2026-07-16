@@ -1,7 +1,7 @@
 use-grammars = { only = ["go", "gomod", "gosum", "gowork", "markdown", "html", "css", "javascript", "typescript", "tsx"] }
 
 [language-server.gopls.config]
-buildFlags = ["-tags=component,integration,production,wireinject,acceptance,oidc"]
+buildFlags = ["-tags=component,integration,production,wireinject,oidc,frontend"]
 completeUnimported = true
 
 [language-server.typescript-language-server]
